@@ -1,0 +1,96 @@
+name: Build TriOS Live ISO
+
+on:
+  workflow_dispatch:      # ручной запуск кнопкой в браузере с телефона
+  push:
+    branches: [main]
+    paths: ['auto/**', 'config/**', 'build.sh']
+
+permissions:
+  contents: write     # нужно для создания Release
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fix script permissions
+        run: chmod +x auto/config auto/build auto/clean build.sh
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
+                      /opt/hostedtoolcache/CodeQL || true
+          df -h /
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y live-build debootstrap squashfs-tools \
+                                  xorriso dosfstools
+
+      - name: Preflight check
+        run: |
+          echo "== файлы репозитория =="
+          ls -la
+          for f in auto/config auto/build auto/clean \
+                   config/package-lists/trios.list.chroot \
+                   config/hooks/0100-waydroid.chroot \
+                   config/includes.chroot/usr/local/bin/trios-launcher.py; do
+            if [ -f "$f" ]; then echo "OK: $f"; else echo "ОТСУТСТВУЕТ: $f"; fi
+          done
+          echo "== версия live-build =="
+          lb --version || sudo apt-get install -y live-build
+          if grep -q 'debian-installer false' auto/config 2>/dev/null; then
+            echo "!!! auto/config устарел: в нём --debian-installer false"
+            echo "    (в новых live-build допустимо: none|live|cdrom|netinst|netboot|businesscard)"
+            sed -i 's/--debian-installer false/--debian-installer none/' auto/config
+            echo "исправлено на месте: --debian-installer none"
+          fi
+
+      - name: Configure live-build
+        run: sh auto/config
+
+      - name: Build ISO
+        run: sudo sh auto/build
+
+      - name: Dump logs on failure
+        if: failure()
+        run: |
+          echo "=== build.log (последние 100 строк) ==="
+          tail -n 100 build.log || true
+          echo "=== логи chroot ==="
+          find config -maxdepth 1 -name 'chroot*' -exec sh -c \
+            'echo "--- {} ---"; tail -n 40 "{}" || true' \; || true
+
+      - name: Verify tools and ISO
+        if: success()
+        run: |
+          command -v lb
+          command -v xorriso
+          ls -lh trios-live-amd64.iso
+
+      - name: Upload ISO (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: trios-live-iso
+          path: trios-live-amd64.iso
+          compression-level: 0
+          retention-days: 14
+
+      - name: Upload ISO to Release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: trios-v${{ github.run_number }}
+          name: TriOS Live — сборка №${{ github.run_number }}
+          body: |
+            Автоматическая сборка TriOS Live ISO.
+            Основа: Debian trixie + Wayland (labwc), автозапуск trios-launcher.py.
+            Режимы: DOS (DOSBox), Windows (Wine), Android (Waydroid).
+          files: trios-live-amd64.iso
+          fail_on_unmatched_files: true
