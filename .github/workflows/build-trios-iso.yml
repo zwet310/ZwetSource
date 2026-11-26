@@ -1,0 +1,88 @@
+name: Build TriOS Live ISO
+
+on:
+  workflow_dispatch:      # ручной запуск кнопкой
+  push:
+    branches: [main]
+
+permissions:
+  contents: write         # нужно для создания Release
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate TriOS build kit
+        env:
+          KIT_B64: "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"
+        run: |
+          echo "$KIT_B64" | base64 -d | tar -xz
+          chmod +x auto/config auto/build auto/clean build.sh
+          echo "== kit unpacked =="
+          ls auto config config/hooks config/package-lists
+          grep -q 'mirror-bootstrap "http://deb.debian.org' auto/config && echo "mirrors OK"
+          grep -q 'linux-packages "linux-image"' auto/config && echo "kernel OK"
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
+                      /opt/hostedtoolcache/CodeQL || true
+          df -h /
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y live-build debootstrap squashfs-tools \
+                                  xorriso dosfstools debian-archive-keyring
+          lb --version
+
+      - name: Configure live-build
+        run: sh auto/config
+
+      - name: Build ISO
+        run: |
+          sudo bash auto/build
+          ISO=$(ls -1t *.iso | head -n1)
+          test -n "$ISO" && mv "$ISO" trios-live-amd64.iso
+          ls -lh trios-live-amd64.iso
+
+      - name: Dump logs on failure
+        if: failure()
+        run: |
+          echo "=== build.log (последние 300 строк) ==="
+          tail -n 300 build.log 2>/dev/null || true
+          echo "=== конфиг live-build ==="
+          grep '^LB_' config/common 2>/dev/null | head -60 || true
+          echo "=== ресурсы раннера ==="
+          df -h / /tmp 2>/dev/null || true
+          free -m 2>/dev/null || true
+          echo "=== файлы репозитория ==="
+          ls -la
+
+      - name: Upload ISO (artifact)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trios-live-iso
+          path: trios-live-amd64.iso
+          compression-level: 0
+          retention-days: 14
+
+      - name: Upload ISO to Release
+        if: success()
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: trios-v${{ github.run_number }}
+          name: TriOS Live — сборка №${{ github.run_number }}
+          body: |
+            Автоматическая сборка TriOS Live ISO.
+            Основа: Debian trixie + Wayland (labwc), автозапуск trios-launcher.py.
+            Режимы: DOS (DOSBox), Windows (Wine), Android (Waydroid).
+          files: trios-live-amd64.iso
+          fail_on_unmatched_files: true
